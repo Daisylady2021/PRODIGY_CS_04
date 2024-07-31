@@ -1,0 +1,59 @@
+import keyboard
+import threading
+import time
+import os
+import json
+import datetime
+
+def record_keyboard(output_file, recording_duration=None):
+    """Records keyboard input and saves it to a JSON file."""
+    recordings = []
+    start_time = time.time()
+
+    def record_callback(event):
+        recordings.append({
+            "timestamp": datetime.datetime.now().isoformat(),
+            "event": event.name,
+            "is_down": event.event_type == "down"
+        })
+
+    keyboard.on_press(record_callback)
+    keyboard.on_release(record_callback)
+
+    try:
+        if recording_duration:
+            end_time = start_time + recording_duration
+            while time.time() < end_time:
+                time.sleep(0.1)
+        else:
+            while True:
+                time.sleep(0.1)
+    except KeyboardInterrupt:
+        keyboard.unhook_all()
+    finally:
+        with open(output_file, "w") as f:
+            json.dump(recordings, f)
+        print("Recording saved to", output_file)
+
+def start_recording(output_file="recording.json", duration=None):
+    """Starts a new recording thread."""
+    thread = threading.Thread(target=record_keyboard, args=(output_file, duration))
+    thread.start()
+    return thread
+
+def stop_recording(thread):
+    """Stops the recording thread."""
+    thread.join()  # Wait for the thread to finish
+
+if __name__ == "__main__":
+    output_file = "recording.json"
+    recording_duration = None  # Set duration in seconds or None for indefinite
+
+    recording_thread = start_recording(output_file, recording_duration)
+
+    try:
+        while True:
+            # Add custom logic here (e.g., user interface, hotkeys)
+            time.sleep(0.1)  # Check for stop signal every 100ms
+    except KeyboardInterrupt:
+        stop_recording(recording_thread)
